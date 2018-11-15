@@ -6,6 +6,18 @@
 
 <h2>Index</h2>
 
+@if(ViewBag.EncodedURL != null && ViewBag.URL != null)
+{
+<div class="row">
+    <div class="col-md-6">
+        Actual URL: @ViewBag.URL
+    </div>
+    <div class="col-md-6">
+        Encoded URL: @ViewBag.EncodedURL
+    </div>
+</div>
+}
+
 <div class="row">
     <div class="col-md-4">
         <form asp-action="Index">

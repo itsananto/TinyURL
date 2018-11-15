@@ -25,9 +25,20 @@ namespace TinyURL.Controllers
         }
 
         // GET: URLMaps
-        public IActionResult Index()
+        public IActionResult Index(string encoded)
         {
-            GenerateShortURL();
+
+            if (encoded != null && URLMapExists(encoded))
+            {
+                ViewBag.EncodedURL = Request.Scheme + Uri.SchemeDelimiter + Request.Host + "/" + encoded;
+                ViewBag.URL = _context.URLMap.FirstOrDefault(x => x.EncodedURL == encoded).URL;
+            }
+            else
+            {
+                ViewBag.EncodedURL = TempData.ContainsKey("encoded") ? TempData["encoded"] : null;
+                ViewBag.URL = TempData.ContainsKey("url") ? TempData["url"] : null;
+            }
+
             return View(new URLMapViewModel());
         }
 
@@ -37,11 +48,26 @@ namespace TinyURL.Controllers
         {
             if (ModelState.IsValid)
             {
+                string encodedPart = "";
+                if (URLMapExists(new Uri(uRLMap.URL)))
+                {
+                    encodedPart = _context.URLMap.FirstOrDefault(x=>x.URL == uRLMap.URL).EncodedURL;
+                }
+                else
+                {
+                    var map = _mapper.Map<URLMapViewModel, URLMap>(uRLMap);
+                    map.EncodedURL = GenerateShortURL();
 
-                var map = _mapper.Map<URLMapViewModel, URLMap>(uRLMap);
+                    _context.Add(map);
+                    await _context.SaveChangesAsync();
 
-                //_context.Add(uRLMap);
-                //await _context.SaveChangesAsync();
+                    encodedPart = map.EncodedURL;
+                }
+
+                TempData["encoded"] = Request.Scheme + Uri.SchemeDelimiter + Request.Host + "/" + encodedPart;
+                TempData["url"] = uRLMap.URL;
+
+
                 return RedirectToAction(nameof(Index));
             }
             return View(uRLMap);
@@ -62,38 +88,14 @@ namespace TinyURL.Controllers
             return encodedURL.ToString();
         }
 
-        // GET: URLMaps/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        private bool URLMapExists(string encodedURL)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var uRLMap = await _context.URLMap
-                .SingleOrDefaultAsync(m => m.ID == id);
-            if (uRLMap == null)
-            {
-                return NotFound();
-            }
-
-            return View(uRLMap);
+            return _context.URLMap.Any(e => e.EncodedURL == encodedURL);
         }
 
-        // POST: URLMaps/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        private bool URLMapExists(Uri URL)
         {
-            var uRLMap = await _context.URLMap.SingleOrDefaultAsync(m => m.ID == id);
-            _context.URLMap.Remove(uRLMap);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
-
-        private bool URLMapExists(int id)
-        {
-            return _context.URLMap.Any(e => e.ID == id);
+            return _context.URLMap.Any(e => e.URL == URL.OriginalString);
         }
     }
 }

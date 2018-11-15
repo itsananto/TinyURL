@@ -59,7 +59,13 @@ namespace TinyURL
             {
                 routes.MapRoute(
                     name: "default",
-                    template: "{controller=URLMaps}/{action=Index}/{id?}");
+                    template: "{controller=URLMaps}/{action=Index}/{url?}");
+
+                routes.MapRoute(
+                       name: "encoded-url",
+                       template: "{encoded}",
+                       defaults: new { controller = "URLMaps", action = "Index" }
+                    );
             });
         }
     }
