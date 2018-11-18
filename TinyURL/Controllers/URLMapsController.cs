@@ -9,29 +9,37 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using TinyURL.Models;
+using TinyURL.Services;
+using TinyURL.Utilities;
 using TinyURL.ViewModels;
 
 namespace TinyURL.Controllers
 {
     public class URLMapsController : Controller
     {
-        private readonly TinyURLContext _context;
         private readonly IMapper _mapper;
+        private IURLMapsService _service;
 
-        public URLMapsController(TinyURLContext context, IMapper mapper)
+        public URLMapsController(IMapper mapper, IURLMapsService service)
         {
-            _context = context;
             _mapper = mapper;
+            _service = service;
         }
 
         // GET: URLMaps
         public IActionResult Index(string encoded)
         {
 
-            if (encoded != null && URLMapExists(encoded))
+            if (encoded != null)
             {
-                ViewBag.EncodedURL = Request.Scheme + Uri.SchemeDelimiter + Request.Host + "/" + encoded;
-                ViewBag.URL = _context.URLMap.FirstOrDefault(x => x.EncodedURL == encoded).URL;
+                if (_service.EncodedURLMapExists(encoded))
+                {
+                    return Redirect(_service.GetURLBasedOnEncodedURL(encoded));
+                }
+                else
+                {
+                    return View("Error");
+                }
             }
             else
             {
@@ -48,18 +56,19 @@ namespace TinyURL.Controllers
         {
             if (ModelState.IsValid)
             {
+                uRLMap.URL = Helper.ValidateURL(uRLMap.URL);
+
                 string encodedPart = "";
-                if (URLMapExists(new Uri(uRLMap.URL)))
+                if (_service.URLMapExists(uRLMap.URL))
                 {
-                    encodedPart = _context.URLMap.FirstOrDefault(x=>x.URL == uRLMap.URL).EncodedURL;
+                    encodedPart = _service.GetEncodedURLBasedOnURL(uRLMap.URL);
                 }
                 else
                 {
                     var map = _mapper.Map<URLMapViewModel, URLMap>(uRLMap);
-                    map.EncodedURL = GenerateShortURL();
+                    map.EncodedURL = Helper.GenerateShortURL();
 
-                    _context.Add(map);
-                    await _context.SaveChangesAsync();
+                    _service.SaveURLMap(map);
 
                     encodedPart = map.EncodedURL;
                 }
@@ -73,29 +82,6 @@ namespace TinyURL.Controllers
             return View(uRLMap);
         }
 
-        public string GenerateShortURL()
-        {
-            StringBuilder encodedURL = new StringBuilder();
-            string reference = "1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-            Random rnd = new Random();
-            for (int i = 0; i < 7; i++)
-            {
-                int rand = rnd.Next(0, reference.Length - 1);
-                encodedURL.Append(reference[rand]);
-            }
-
-            return encodedURL.ToString();
-        }
-
-        private bool URLMapExists(string encodedURL)
-        {
-            return _context.URLMap.Any(e => e.EncodedURL == encodedURL);
-        }
-
-        private bool URLMapExists(Uri URL)
-        {
-            return _context.URLMap.Any(e => e.URL == URL.OriginalString);
-        }
+        
     }
 }

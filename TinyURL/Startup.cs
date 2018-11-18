@@ -10,6 +10,9 @@ using Microsoft.EntityFrameworkCore;
 using TinyURL.Models;
 using AutoMapper;
 using TinyURL.Mapping;
+using Autofac;
+using Autofac.Extensions.DependencyInjection;
+using TinyURL.Services;
 
 namespace TinyURL
 {
@@ -23,7 +26,7 @@ namespace TinyURL
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public void ConfigureServices(IServiceCollection services)
+        public IServiceProvider ConfigureServices(IServiceCollection services)
         {
             // Auto Mapper Configurations
             var mappingConfig = new MapperConfiguration(mc =>
@@ -38,6 +41,14 @@ namespace TinyURL
 
             services.AddDbContext<TinyURLContext>(options =>
                     options.UseSqlServer(Configuration.GetConnectionString("TinyURLContext")));
+
+
+            var builder = new ContainerBuilder();
+            builder.Populate(services);
+            builder.RegisterType<URLMapsService>().As<IURLMapsService>();
+
+            var container = builder.Build();
+            return new AutofacServiceProvider(container);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
